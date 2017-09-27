@@ -10,20 +10,16 @@ import time
 
 from bs4 import BeautifulSoup
 
-def scroll_to_bottom(browser):
-    last_height = browser.execute_script("return document.body.scrollHeight;")
-    # num_cards = len(browser.find_elements_by_class_name("ProfileCard"))
+class new_height_reached(object):
+    def __init__(self, last_height):
+        self.last_height = last_height
 
-    while True:
-        browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-
-        time.sleep(0.5)
-
-        # new_num_cards = len(browser.find_elements_by_class_name("ProfileCard"))
-        new_height = browser.execute_script("return document.body.scrollHeight;") 
-        if new_height == last_height:
-            break
-        last_height = new_height
+    def __call__(self, driver):
+        new_height = driver.execute_script("return document.body.scrollHeight;")
+        if new_height != self.last_height:
+            return new_height
+        else:
+            return False
 
 
 
@@ -43,23 +39,20 @@ def get_follow_list(username, your_username, password):
 
     ui.WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "ProfileCard")))
 
-    # scroll_to_bottom(browser)
+
     last_height = browser.execute_script("return document.body.scrollHeight;")
-    # num_cards = len(browser.find_elements_by_class_name("ProfileCard"))
-
+    num_cards = len(browser.find_elements_by_class_name("ProfileCard"))
     while True:
-        browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        browser.execute_script("window.scrollTo(0, document.body.scrollHeight)");
 
-        time.sleep(0.5)
-
-        # new_num_cards = len(browser.find_elements_by_class_name("ProfileCard"))
-        new_height = browser.execute_script("return document.body.scrollHeight;") 
-        if new_height == last_height:
+        try:
+            new_height = ui.WebDriverWait(browser, 1.5).until(new_height_reached(last_height))
+            last_height = new_height
+        except:
+            # print(sys.exc_info())
             break
-        last_height = new_height
 
-
-    ui.WebDriverWait(browser, 3000)
+    print("Loop exited; follow list extracted")
 
     ret = browser.execute_script("return document.documentElement.innerHTML;")
     browser.close()
