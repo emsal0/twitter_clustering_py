@@ -37,7 +37,10 @@ def get_follow_list(username, your_username, password):
     ui.WebDriverWait(browser, 5)
     password_field.send_keys(Keys.RETURN)
 
-    ui.WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "ProfileCard")))
+    try:
+        ui.WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "ProfileCard")))
+    except:
+        return []
 
 
     last_height = browser.execute_script("return document.body.scrollHeight;")
