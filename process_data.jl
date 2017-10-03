@@ -13,6 +13,15 @@ function getUsername(filename)
     end
 end
 
+## TODO -- some kind of tree so i can find nearest neighbours
+
+function densityClustering(dataPoints)
+    clusters = []
+    visited = Set()
+    for point in dataPoints
+
+    end
+end
 
 for (_, _, fs) in walkdir(data_path)
     usernames = filter(u -> u != "", map(getUsername, fs))
@@ -58,6 +67,24 @@ for username in usernames
     end
 end
 
-println(size(followingToCheck))
-println(t_noneinthr)
-println(size(t_noneinthr))
+usernamesFiltered = filter(name -> !in(name, t_noneinthr), usernames)
+
+dataPoints = []
+
+(dim,) = size(followingToCheck)
+
+for username in usernamesFiltered
+    vec = zeros(dim,1)
+
+    for (index, followedAcc) in enumerate(followingToCheck)
+        if in(username, followed[followedAcc].following)
+            vec[index] = 1
+        end
+    end
+
+    push!(dataPoints, vec)
+end
+
+println(dataPoints[1])
+println(size(dataPoints))
+println(dim)
