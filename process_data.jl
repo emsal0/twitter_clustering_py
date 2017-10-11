@@ -1,3 +1,5 @@
+using TSne
+
 data_path = ARGS[1] # ARGS[1] must be a directory
 
 usernames = [];
@@ -13,14 +15,39 @@ function getUsername(filename)
     end
 end
 
-## TODO -- some kind of tree so i can find nearest neighbours
+function tsne_reduce(dataPoints)
+    Y = tsne(dataPoints, 2, 0, 1000, 15.0)
 
-function densityClustering(dataPoints)
-    clusters = []
-    visited = Set()
-    for point in dataPoints
+    return Y
+end
 
+function cluster(dataPoints)
+    n = size(dataPoints, 1)
+
+    MINPTS = 5
+    RADIUS = sqrt(n * 3 / 10)
+
+    y = zeros(n)
+
+    currentClusterNum = 1
+
+
+    for i in 1:n
+        distances=[]
+        for j in 1:n
+            if i !== j
+                push!(distances, norm(dataPoints[j, :] - dataPoints[i, :]))
+            end
+        end
+
+        if sort(distances)[MINPTS] <= RADIUS
+            expandCluster(dataPoints, i)
+        end
     end
+end
+
+function expandCluster(dataPoints, idx)
+
 end
 
 for (_, _, fs) in walkdir(data_path)
@@ -69,22 +96,34 @@ end
 
 usernamesFiltered = filter(name -> !in(name, t_noneinthr), usernames)
 
-dataPoints = []
-
 (dim,) = size(followingToCheck)
 
-for username in usernamesFiltered
-    vec = zeros(dim,1)
+(n,) = size(usernamesFiltered)
+dataPoints = zeros(n,dim)
 
-    for (index, followedAcc) in enumerate(followingToCheck)
+for (usernameIdx, username) in enumerate(usernamesFiltered)
+
+    for (followedIdx, followedAcc) in enumerate(followingToCheck)
         if in(username, followed[followedAcc].following)
-            vec[index] = 1
+            dataPoints[usernameIdx, followedIdx] = 1
         end
     end
-
-    push!(dataPoints, vec)
 end
 
-println(dataPoints[1])
-println(size(dataPoints))
-println(dim)
+# println(dataPoints[1])
+# println(size(dataPoints))
+# println(dim)
+
+function rescale(A, dim::Integer=1)
+    res = A .- mean(A, dim)
+    res ./= map!(x -> x > 0.0 ? x : 1.0, std(A, dim))
+    res
+end
+
+reshapedData = convert(Matrix{Float64}, dataPoints)'
+X = rescale(reshapedData, 1)
+reduced = tsne_reduce(X)
+
+using Gadfly
+p = plot(x=reduced[:,1], y=reduced[:,2])
+draw(PDF("output.pdf", 6inch, 4inch), p)
