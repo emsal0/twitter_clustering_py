@@ -1,4 +1,5 @@
-using TSne
+using TSne #tSNE
+using MultivariateStats #PCA
 
 data_path = ARGS[1] # ARGS[1] must be a directory
 
@@ -21,18 +22,36 @@ function tsne_reduce(dataPoints)
     return Y
 end
 
+# n^2
+function closestPoints(X::Array{Float64, 2}, i, numPoints)
+
+    n = size(X, 1)
+
+    distances=[]
+    for j in 1:n
+        if i !== j
+            push!(distances, norm(dataPoints[j, :] - dataPoints[i, :]))
+        end
+    end
+
+    return X[sortperm(distances)[1:numPoints], :], distances, sortperm(distances)
+end
+
 function cluster(dataPoints)
     n = size(dataPoints, 1)
 
-    MINPTS = 5
-    RADIUS = sqrt(n * 3 / 10)
+    MINPTS = 2
+    RADIUS = sqrt(n * 1 / 5)
 
     y = zeros(n)
 
     currentClusterNum = 1
 
-
     for i in 1:n
+        if y[i] != 0
+            continue
+        end
+
         distances=[]
         for j in 1:n
             if i !== j
@@ -41,13 +60,30 @@ function cluster(dataPoints)
         end
 
         if sort(distances)[MINPTS] <= RADIUS
-            expandCluster(dataPoints, i)
+            println("calling expandcluster on point", i)
+            expandCluster!(y, dataPoints, i, currentClusterNum, RADIUS)
+            currentClusterNum += 1
         end
     end
+
+    return y
 end
 
-function expandCluster(dataPoints, idx)
+function expandCluster!(y, dataPoints, idx, currentClusterNum, radius)
+    queue = [idx]
 
+    n = size(dataPoints, 1)
+
+    for o in queue
+        (sortedPoints, distances, perm) = closestPoints(dataPoints, idx, n-1)
+
+        for j in 1:n-1
+            if distances[j] <= radius && y[perm[j]] == 0
+                y[perm[j]] = currentClusterNum
+                push!(queue, perm[j])
+            end
+        end
+    end
 end
 
 for (_, _, fs) in walkdir(data_path)
@@ -120,10 +156,15 @@ function rescale(A, dim::Integer=1)
     res
 end
 
-reshapedData = convert(Matrix{Float64}, dataPoints)'
+reshapedData = convert(Matrix{Float64}, dataPoints)
 X = rescale(reshapedData, 1)
-reduced = tsne_reduce(X)
+M = fit(PCA, X'; maxoutdim = 50)
 
-using Gadfly
-p = plot(x=reduced[:,1], y=reduced[:,2])
-draw(PDF("output.pdf", 6inch, 4inch), p)
+y = cluster(transform(M, X')')
+@show(y)
+
+@show(usernamesFiltered[find(y.==2)])
+
+# using Gadfly
+# p = plot(x=reduced[:,1], y=reduced[:,2])
+# draw(PDF("output.pdf", 6inch, 4inch), p)
