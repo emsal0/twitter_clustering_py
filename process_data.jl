@@ -29,19 +29,17 @@ function closestPoints(X::Array{Float64, 2}, i, numPoints)
 
     distances=[]
     for j in 1:n
-        if i !== j
-            push!(distances, norm(dataPoints[j, :] - dataPoints[i, :]))
-        end
+        push!(distances, norm(dataPoints[j, :] - dataPoints[i, :]))
     end
 
     return X[sortperm(distances)[1:numPoints], :], distances, sortperm(distances)
 end
 
-function cluster(dataPoints)
+function densityCluster(dataPoints)
     n = size(dataPoints, 1)
 
-    MINPTS = 2
-    RADIUS = sqrt(n * 1 / 5)
+    MINPTS = 5
+    RADIUS = sqrt(n * 3 / 10)
 
     y = zeros(n)
 
@@ -60,30 +58,50 @@ function cluster(dataPoints)
         end
 
         if sort(distances)[MINPTS] <= RADIUS
-            println("calling expandcluster on point", i)
-            expandCluster!(y, dataPoints, i, currentClusterNum, RADIUS)
-            currentClusterNum += 1
+            println("calling expandCluster on point ", i)
+            currentClusterNum = expandCluster!(y, dataPoints, i, currentClusterNum, RADIUS, MINPTS)
         end
     end
 
     return y
 end
 
-function expandCluster!(y, dataPoints, idx, currentClusterNum, radius)
+function expandCluster!(y, dataPoints, idx, currentClusterNum, radius, minPts)
+
     queue = [idx]
+
+    visited = Set()
 
     n = size(dataPoints, 1)
 
+    count = 0
+
     for o in queue
+        if y[o] == 0
+            y[o] = currentClusterNum
+            count += 1
+        else
+            continue
+        end
+
         (sortedPoints, distances, perm) = closestPoints(dataPoints, idx, n-1)
 
-        for j in 1:n-1
+        for j in 1:n
             if distances[j] <= radius && y[perm[j]] == 0
-                y[perm[j]] = currentClusterNum
                 push!(queue, perm[j])
+                push!(visited, perm[j])
             end
         end
     end
+
+    if count < minPts
+        for pt in visited
+            y[pt] = 0
+        end
+        return currentClusterNum
+    end
+
+    return currentClusterNum + 1
 end
 
 for (_, _, fs) in walkdir(data_path)
@@ -112,7 +130,7 @@ for (n, file) in enumerate(validFiles)
     close(strm)
 end
 
-THRESHOLD = 15
+THRESHOLD = 1
 
 followingToCheck = []
 
@@ -158,13 +176,11 @@ end
 
 reshapedData = convert(Matrix{Float64}, dataPoints)
 X = rescale(reshapedData, 1)
-M = fit(PCA, X'; maxoutdim = 50)
+M = fit(PCA, X'; maxoutdim = 40)
 
-y = cluster(transform(M, X')')
+y = densityCluster(transform(M, X')')
 @show(y)
 
-@show(usernamesFiltered[find(y.==2)])
-
-# using Gadfly
-# p = plot(x=reduced[:,1], y=reduced[:,2])
-# draw(PDF("output.pdf", 6inch, 4inch), p)
+for value in unique(y)
+    @printf("Cluster %d: %s\n", value, usernamesFiltered[find(y.==value)])
+end
