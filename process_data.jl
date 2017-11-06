@@ -16,12 +16,6 @@ function getUsername(filename)
     end
 end
 
-function tsne_reduce(dataPoints)
-    Y = tsne(dataPoints, 2, 0, 1000, 15.0)
-
-    return Y
-end
-
 # n^2
 function closestPoints(X::Array{Float64, 2}, i, numPoints)
 
@@ -130,7 +124,7 @@ for (n, file) in enumerate(validFiles)
     close(strm)
 end
 
-THRESHOLD = 1
+THRESHOLD = 1 # with THRESHOLD=1, there is no threshold. Experiments have been done setting this to as high as 15.
 
 followingToCheck = []
 
@@ -164,14 +158,10 @@ for (usernameIdx, username) in enumerate(usernamesFiltered)
     end
 end
 
-# println(dataPoints[1])
-# println(size(dataPoints))
-# println(dim)
-
 function rescale(A, dim::Integer=1)
     res = A .- mean(A, dim)
     res ./= map!(x -> x > 0.0 ? x : 1.0, std(A, dim))
-    res
+    return res
 end
 
 reshapedData = convert(Matrix{Float64}, dataPoints)
