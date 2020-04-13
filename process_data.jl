@@ -6,6 +6,8 @@ data_path = ARGS[1] # ARGS[1] must be a directory
 usernames = [];
 validFiles = [];
 
+reduce_dim = 40
+
 function getUsername(filename)
     m = match(r"^(.*)\.txt$", filename)
     (s,) = size(m.captures)
@@ -166,7 +168,7 @@ end
 
 reshapedData = convert(Matrix{Float64}, dataPoints)
 X = rescale(reshapedData, 1)
-M = fit(PCA, X'; maxoutdim = 40)
+M = fit(PCA, X'; maxoutdim = reduce_dim)
 
 y = densityCluster(transform(M, X')')
 @show(y)
